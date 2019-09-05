@@ -1,0 +1,13 @@
+# python compile
+*.py[cod]
+__pycache__
+__ignore__
+*.info
+*.log
+test.py
+jobs
+.idea
+mx_config.yaml
+*.yml
+*.png
+*.yaml
