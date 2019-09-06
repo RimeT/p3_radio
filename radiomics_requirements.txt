@@ -1,0 +1,4 @@
+pyradiomics==2.1.2
+SimpleITK==1.2.0
+xgboost==0.81
+pandas==0.24.0
