@@ -11,3 +11,4 @@ mx_config.yaml
 *.yml
 *.png
 *.yaml
+venv
