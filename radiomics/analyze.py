@@ -180,7 +180,7 @@ if __name__ == '__main__':
     # debug
     parser.add_argument('--feature_csv', help='feature csv file', default='./example-debug/output/feature_selected.csv')
     parser.add_argument('--target_csv', help='target csv file', default='./example-debug/target.csv')
-    parser.add_argument('--output_dir', help='output csv file', default='./example-debug/output')
+    parser.add_argument('--output_dir', help='output csv directory', default='./example-debug/output')
     parser.add_argument('--k', help='number of clusters', type=int, default=4)
     args = parser.parse_args()
     main(args.feature_csv, args.target_csv, args.output_dir, args.k)
