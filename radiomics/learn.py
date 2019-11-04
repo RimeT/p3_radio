@@ -14,13 +14,15 @@ import pandas as pd
 import xgboost as xgb
 from sklearn import datasets
 from sklearn import svm
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, BaggingClassifier
 from sklearn.externals import joblib
 from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model.stochastic_gradient import SGDClassifier
 from sklearn.metrics import classification_report, roc_curve, auc
 from sklearn.model_selection import StratifiedKFold, GridSearchCV, RandomizedSearchCV
 from sklearn.multiclass import OneVsRestClassifier
-from sklearn.naive_bayes import GaussianNB
+from sklearn.naive_bayes import GaussianNB, BernoulliNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
@@ -61,35 +63,21 @@ def _get_classifier(m, model_params, tv_data, is_binary, random_state=42, class_
                          gamma=(1, 2, 3, 'auto'),
                          decision_function_shape=('ovo', 'ovr'),
                          shrinking=(True, False),
+                         nu=(0.4, 0.5, 0.6)
                          )
-            clf_probe = RandomizedSearchCV(svm.SVC(), param, n_iter=200, scoring='accuracy', verbose=1,
+            clf_probe = RandomizedSearchCV(svm.NuSVC(), param, n_iter=200, scoring='accuracy', verbose=1,
                                            cv=StratifiedKFold(n_splits=3, random_state=42), n_jobs=6,
                                            random_state=42)
             clf_probe.fit(tv_feature, tv_label)
             return svm.NuSVC(probability=True, random_state=random_state, **clf_probe.best_params_), class_name
         else:
             return svm.NuSVC(probability=True, **model_params), class_name
-            # return svm.SVC(kernel='linear', probability=True, random_state=random_state), class_name
-    elif 'svm' in m:
-        # class_name = "SVM"
-        if auto_opt:
-            param = dict(kernel=('linear', 'rbf'),
-                         C=np.logspace(-4, 4, 20),
-                         gamma=(1, 2, 3, 'auto'),
-                         decision_function_shape=('ovo', 'ovr'),
-                         shrinking=(True, False)
-                         )
-            clf_probe = RandomizedSearchCV(svm.SVC(), param, n_iter=200, scoring='accuracy', verbose=1,
-                                           cv=StratifiedKFold(n_splits=3, random_state=42), n_jobs=6,
-                                           random_state=42)
-            clf_probe.fit(tv_feature, tv_label)
-            return svm.SVC(probability=True, random_state=random_state, **clf_probe.best_params_), class_name
-        else:
-            return svm.SVC(kernel='linear', probability=True, random_state=random_state), class_name
-    elif 'bayes' in m:
+    elif 'bayesgaussian' == m:
         # class_name = "Naive Bayes"
-        return GaussianNB(), class_name
-    elif 'knn' in m:
+        return GaussianNB(**model_params), class_name
+    elif 'bayesbernoulli' == m:
+        return BernoulliNB(**model_params), class_name
+    elif 'knn' == m:
         # class_name = "KNN"
         if auto_opt:
             param = dict(n_neighbors=tuple(range(class_nb, 4 * class_nb))[1::2],
@@ -102,7 +90,9 @@ def _get_classifier(m, model_params, tv_data, is_binary, random_state=42, class_
             clf_probe.fit(tv_feature, tv_label)
             return KNeighborsClassifier(**clf_probe.best_params_), class_name
         else:
-            return KNeighborsClassifier(n_neighbors=class_nb * 3), class_name
+            if 'n_neighbors' in model_params:
+                model_params['n_neighbors'] *= class_nb
+            return KNeighborsClassifier(**model_params), class_name
     elif 'logistic' in m:
         # class_name = "Logistic Regression"
         if auto_opt:
@@ -122,8 +112,7 @@ def _get_classifier(m, model_params, tv_data, is_binary, random_state=42, class_
             return LogisticRegression(tol=1e-6, max_iter=1000, random_state=random_state,
                                       **clf_probe.best_params_), class_name
         else:
-            return LogisticRegression(tol=1e-6, max_iter=1000, random_state=random_state,
-                                      solver='liblinear'), class_name
+            return LogisticRegression(**model_params), class_name
     elif 'decision' in m:
         # class_name = "Decision Tree"
         if auto_opt:
@@ -138,7 +127,7 @@ def _get_classifier(m, model_params, tv_data, is_binary, random_state=42, class_
             clf_probe.fit(tv_feature, tv_label)
             return DecisionTreeClassifier(random_state=random_state, **clf_probe.best_params_), class_name
         else:
-            return DecisionTreeClassifier(max_depth=200, min_samples_leaf=15, random_state=random_state), class_name
+            return DecisionTreeClassifier(random_state=random_state, **model_params), class_name
     elif 'random' in m:
         # class_name = "Random Forest"
         if auto_opt:
@@ -164,7 +153,7 @@ def _get_classifier(m, model_params, tv_data, is_binary, random_state=42, class_
         else:
             return xgb.XGBClassifier(objective='multi:softprob', n_estimators=200, max_depth=200,
                                      random_state=random_state, num_class=class_nb), class_name
-    elif 'deep' in m:
+    elif 'mlp' == m:
         # class_name = "Deep Learning"
         if auto_opt:
             param = dict(alpha=10.0 ** -np.arange(1, 10),
@@ -179,7 +168,17 @@ def _get_classifier(m, model_params, tv_data, is_binary, random_state=42, class_
                                  **clf_probe.best_params_), class_name
         else:
             return MLPClassifier(random_state=random_state, max_iter=5000, tol=1e-5,
-                                 learning_rate='adaptive'), class_name
+                                 **model_params), class_name
+    elif 'adaboost' == m:
+        return AdaBoostClassifier(n_estimators=200, random_state=random_state, **model_params), class_name
+    elif 'lineardiscriminant' == m:
+        return LinearDiscriminantAnalysis(**model_params), class_name
+    elif 'quadraticdiscriminant' == m:
+        return QuadraticDiscriminantAnalysis(**model_params), class_name
+    elif 'sgd' == m:
+        return SGDClassifier(random_state=random_state, **model_params), class_name
+    elif 'bagging' == m:
+        return BaggingClassifier(random_state=random_state), class_name
     return None, None
 
 
