@@ -81,7 +81,7 @@ def extract_feature(case):
 
         if use_pyradiomics:
             extractor.enableImageTypeByName("Original")
-            if mask_arr.shape[0] > 1: # 只对channel大于1的使用LoG滤波
+            if min(mask_arr.shape) > 1: # 只对channel大于1的使用LoG滤波
                 extractor.enableImageTypeByName("LoG", customArgs={"sigma": [1.0, 2.0, 3.0]})
             extractor.enableImageTypeByName("Wavelet")
             extractor.enableImageTypeByName("Square")
@@ -114,7 +114,7 @@ def extract_feature(case):
             extractor.enableFeatureClassByName('glrlm')
 
         # 去掉mask周围的0，得到一个缩小版的mask，再生成image，加速运算
-        if mask_arr.shape[0] > 5:
+        if min(mask_arr.shape) > 5:
 
             valid_range_z, valid_range_y, valid_range_x = get_compact_range(mask_arr)
 

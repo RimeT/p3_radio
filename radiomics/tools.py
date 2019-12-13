@@ -219,6 +219,7 @@ def get_compact_range(mask_arr):
             return np.sum(mask_arr[:, :, m])
 
     def get_valid_range(c, valid_range, idx):
+        assert c > 4, "axis {} shape is {} less than 4".format(idx, c)
 
         for m in range(c):
             if get_sum(m, idx) > 0:
@@ -235,7 +236,9 @@ def get_compact_range(mask_arr):
         if margin < 1:
             while valid_range[1] - valid_range[0] + 1 - 3 < 1:
                 if valid_range[0] > 0:
-                    valid_range[0] = valid_range[0] - 1
+                    valid_range[0] -= 1
+                else:
+                    valid_range[1] += 1
 
     get_valid_range(z, valid_range_z, 0)
     get_valid_range(y, valid_range_y, 1)
