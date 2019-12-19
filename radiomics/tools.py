@@ -1,21 +1,20 @@
 # -*- coding: UTF-8 -*-
 
-import pandas as pd
-import numpy as np
-import shutil
-import os
-import glob
-import json
-import sys
-import logging
-import matplotlib.pyplot as plt
-import matplotlib
 import itertools
+import json
+import logging
+import os
+import shutil
+import sys
+
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from scipy import interp
-from sklearn.preprocessing import LabelEncoder, LabelBinarizer, OrdinalEncoder
-from sklearn.preprocessing import scale, StandardScaler, MinMaxScaler, MaxAbsScaler, RobustScaler
-from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, roc_curve, auc
-import traceback, timeit
+from sklearn.metrics import auc
+from sklearn.preprocessing import LabelEncoder, LabelBinarizer
+from sklearn.preprocessing import scale, MinMaxScaler
 
 keywords = ('mask', 'image', 'label', 'dataset', 'pid', "Mask", "Image", "Set1", "Set2", "Set3", "Set4", "Set5")
 
@@ -49,6 +48,7 @@ def preprocessing(df):
     :param df: dataframe
     :return: 处理后的dataframe
     """
+
     def process(c):
         if c.isnull().any().any():
             if np.issubdtype(c.dtype, np.number):
@@ -62,6 +62,7 @@ def preprocessing(df):
             if not np.issubdtype(c.dtype, np.number):
                 return pd.Series(LabelEncoder().fit_transform(c.values))
         return c
+
     pre_df = df.copy()
     return pre_df.apply(lambda col: process(col))
 
@@ -93,7 +94,6 @@ def scale_on_min_max(data, feature_range=(0, 1)):
 
 
 def prepare_target(target, nb=None, map_dict=None, method="map"):
-
     prepared = np.array(target).copy()
 
     is_numeric = np.issubdtype(prepared.dtype, np.number)
@@ -114,6 +114,7 @@ def prepare_target(target, nb=None, map_dict=None, method="map"):
 
     return prepared
 
+
 # prepare_target([1,1,1,11.1], map_dict={1: 111, 11.1:"p"})
 # prepare_target([1,1,2,3,3,3], nb=2, method='size')
 
@@ -122,6 +123,7 @@ def encode_l(label):
     el = le.transform(label)
     mapping = dict(zip(le.classes_, le.transform(le.classes_)))
     return le, el, mapping
+
 
 def encode_b(label):
     le = LabelBinarizer().fit(label)
@@ -133,7 +135,6 @@ def encode_b(label):
 def save_json(content, file_path):
     with open(file_path, 'w') as f:
         json.dump(content, f, sort_keys=True, indent=4)
-
 
 
 def load_json(file_path):
@@ -167,7 +168,6 @@ def prepare_feature_n_label(df_feature, df_label, tags=None, key="mask"):
 
 
 def choose_feature(feature_file, use_pyradiomics=True):
-
     feature_classes = ['glcm',
                        'gldm',
                        'glrlm',
@@ -204,7 +204,6 @@ class info_filter(logging.Filter):
 
 
 def get_compact_range(mask_arr):
-
     z, x, y = mask_arr.shape[0], mask_arr.shape[2], mask_arr.shape[1]
     valid_range_z = [0, z - 1]
     valid_range_x = [0, x - 1]
@@ -282,7 +281,6 @@ def plot_confusion_matrix(cm,
 
 
 def roc_for_cv(fpr_arr, tpr_arr, class_name, save_path, fold_nb=5):
-
     plt.figure(num=300, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
     matplotlib.rc('font', **{'size': 12})
 
@@ -326,7 +324,6 @@ def roc_for_cv(fpr_arr, tpr_arr, class_name, save_path, fold_nb=5):
 
 
 def roc_for_class(fpr_arr, tpr_arr, class_name, save_path):
-
     plt.figure(100, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
     matplotlib.rc('font', **{'size': 12})
 
@@ -342,3 +339,63 @@ def roc_for_class(fpr_arr, tpr_arr, class_name, save_path):
     plt.legend(loc="lower right")
     plt.savefig(save_path, dpi=600)
     plt.clf()
+
+
+def roc_for_clfs(fpr_arr, tpr_arr, clf_names, title, save_path):
+    fig = plt.figure(100, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
+    ax = fig.add_subplot(111)
+    matplotlib.rc('font', **{'size': 12})
+    ax.set_xlabel('1-Specificity')
+    ax.set_ylabel('Sensitivity')
+    ax.set_title(title)
+    auc_by_clfs = dict()
+    for i in range(len(clf_names)):
+        fpr, tpr = fpr_arr[i], tpr_arr[i]
+        clf_name = clf_names[i]
+        auc_i = auc(fpr, tpr)
+        auc_by_clfs[clf_name] = auc_i
+        plt.plot(fpr, tpr, lw=2, label='%s AUC=%0.3f' % (clf_name, auc_i))
+    plt.plot([0, 1], [0, 1], color='orange', lw=2, linestyle='--', alpha=.8)
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.0])
+    plt.legend(loc="lower right")
+    plt.savefig(save_path, dpi=600)
+    plt.clf()
+    return auc_by_clfs
+
+
+def bar_chart(ys, xlabels, ylabel=None, title='Bar chart', save_path=None):
+    fig = plt.figure(100, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
+    ax = fig.add_subplot(111)
+    ax.set_title(title)
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
+    plt.bar(range(len(ys)), ys, color='rgb', tick_label=xlabels)
+    plt.legend(loc="lower right")
+    if save_path is not None:
+        plt.savefig(save_path, dpi=600)
+    plt.clf()
+
+
+def multibar_chart(num_lists, cates, xlabels, title='Bar chart', save_path=None):
+    # fig = plt.figure(100, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_title(title)
+    x = list(range(len(num_lists[0])))
+    xticks = np.asarray(x)
+    total_width, n = 0.35, len(cates)
+    width = total_width / n
+    plt.bar(x, num_lists[0], width=width, align='center', label=cates[0], alpha=0.8)
+    for sli in range(len(cates)):
+        if sli == 0:
+            continue
+        num_list = num_lists[sli]
+        c = cates[sli]
+        for i in range(len(x)):
+            x[i] += width
+        plt.bar(x, num_list, width=width, align='center', label=c, alpha=0.8)
+    plt.xticks(xticks + width / 2, xlabels)
+    plt.legend()
+    if save_path is not None:
+        plt.savefig(save_path, dpi=600)
