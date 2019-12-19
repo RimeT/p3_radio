@@ -378,8 +378,7 @@ def bar_chart(ys, xlabels, ylabel=None, title='Bar chart', save_path=None):
 
 
 def multibar_chart(num_lists, cates, xlabels, title='Bar chart', save_path=None):
-    # fig = plt.figure(100, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
-    fig = plt.figure()
+    fig = plt.figure(100, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
     ax = fig.add_subplot(111)
     ax.set_title(title)
     x = list(range(len(num_lists[0])))
@@ -396,6 +395,24 @@ def multibar_chart(num_lists, cates, xlabels, title='Bar chart', save_path=None)
             x[i] += width
         plt.bar(x, num_list, width=width, align='center', label=c, alpha=0.8)
     plt.xticks(xticks + width / 2, xlabels)
+    plt.legend()
+    if save_path is not None:
+        plt.savefig(save_path, dpi=600)
+
+
+def curve_with_xlabels(y, xlabels, cates, title='', save_path=None):
+    """
+    y shape should be (s1, s2)
+    """
+    xticks = range(y.shape[-1])
+    # fig = plt.figure(100, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_title(title)
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xlabels, rotation=90)
+    for sli in range(y.shape[0]):
+        plt.plot(xticks, y[sli], label=cates[sli])
     plt.legend()
     if save_path is not None:
         plt.savefig(save_path, dpi=600)

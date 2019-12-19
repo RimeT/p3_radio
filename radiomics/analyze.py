@@ -1,16 +1,16 @@
 import argparse
-import pandas as pd
-import numpy as np
-import os
 import json
-
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import LabelEncoder, LabelBinarizer
-from sklearn.cluster import KMeans
-from scipy.spatial import distance
-import tools
+import os
 from itertools import compress
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import tools
+from scipy.spatial import distance
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import LabelEncoder
 
 
 # 2D
@@ -57,21 +57,21 @@ def main(df_path, target_path, output_path, k):
     plt.figure(figsize=(8, 5))
     # draw corr
 
-    # import seaborn as sns
-    # sns.set()
-    # mask = np.zeros_like(corr, dtype=np.bool)
-    # mask[np.triu_indices_from(mask)] = True
-    # cmap = sns.diverging_palette(220, 10, as_cmap=True)
-    # sns.heatmap(corr, cmap=cmap,
-    #             # ax=ax,
-    #             xticklabels=corr.columns.values,
-    #             yticklabels=corr.columns.values,
-    #             # xticklabels=range(1, 1+len(corr.columns)),
-    #             # yticklabels=range(1, 1+len(corr.columns)),
-    #             mask=mask)
-    # plt.savefig(os.path.join(output_path, "correlation.png"), bbox_inches='tight', dpi=600)
-    # plt.show()
-    # plt.clf()
+    import seaborn as sns
+    sns.set()
+    mask = np.zeros_like(corr, dtype=np.bool)
+    mask[np.triu_indices_from(mask)] = True
+    cmap = sns.diverging_palette(220, 10, as_cmap=True)
+    sns.heatmap(corr, cmap=cmap,
+                # ax=ax,
+                xticklabels=corr.columns.values,
+                yticklabels=corr.columns.values,
+                # xticklabels=range(1, 1+len(corr.columns)),
+                # yticklabels=range(1, 1+len(corr.columns)),
+                mask=mask)
+    plt.savefig(os.path.join(output_path, "correlation.png"), bbox_inches='tight', dpi=600)
+    plt.show()
+    plt.clf()
 
     # PCA
     pca_feature = df_norm.copy()
@@ -92,7 +92,8 @@ def main(df_path, target_path, output_path, k):
     pca_df.to_csv(os.path.join(output_path, 'pca.csv'), index=False, encoding='utf-8')
 
     # raw data
-    raw_pca = pd.DataFrame(np.transpose(pca.components_, (1, 0)), columns=["pc_" + str(c) for c in range(len(pca.components_))])
+    raw_pca = pd.DataFrame(np.transpose(pca.components_, (1, 0)),
+                           columns=["pc_" + str(c) for c in range(len(pca.components_))])
     raw_pca.to_csv(os.path.join(output_path, "raw_analyze_pca.csv"), index=False, encoding='utf-8')
 
     plt.ylabel('% Variance')
@@ -139,7 +140,8 @@ def main(df_path, target_path, output_path, k):
     # cluster results
     cluster_res_df = feature_df.copy()
     cluster_res_df['class'] = cluster_labels_str
-    cluster_res_df = cluster_res_df[['class', 'image', 'mask'] + [x for x in cluster_res_df.columns if x not in ['class', 'mask', 'image']]]
+    cluster_res_df = cluster_res_df[
+        ['class', 'image', 'mask'] + [x for x in cluster_res_df.columns if x not in ['class', 'mask', 'image']]]
     cluster_res_df.to_csv(os.path.join(output_path, 'cluster_voi.csv'), index=False, encoding='utf-8')
 
     # cluster centroids
@@ -148,6 +150,15 @@ def main(df_path, target_path, output_path, k):
     cluster_centers['class'] = ["cluster" + str(x + 1) for x in cluster_centers.index.tolist()]
     cluster_centers = cluster_centers[['class'] + [x for x in cluster_centers.columns if x not in ['class']]]
     cluster_centers.to_csv(os.path.join(output_path, 'cluster_centroids.csv'), index=False, encoding='utf-8')
+    cluster_centers_class = cluster_centers['class']
+    cluster_aval_columns = cluster_centers.columns[1:]
+    # print(cluster_aval_columns, type(cluster_aval_columns.tolist()))
+    cluster_nparr = cluster_centers[cluster_aval_columns].values
+    cluster_out_fig = os.path.join(output_path, 'cluster_curve.png')
+    tools.curve_with_xlabels(cluster_nparr, cluster_aval_columns.tolist(), cluster_centers_class.tolist(),
+                             save_path=cluster_out_fig)
+    if os.path.isfile(cluster_out_fig):
+        pass
 
     # cluster statistics
     cluster_count = cluster_res_df[['class']].groupby('class').size()
