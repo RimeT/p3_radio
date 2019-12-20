@@ -343,7 +343,7 @@ def roc_for_class(fpr_arr, tpr_arr, class_name, save_path):
 
 def roc_for_clfs(fpr_arr, tpr_arr, clf_names, title, save_path):
     fig = plt.figure(100, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
-    ax = fig.add_subplot(111)
+    ax = fig.add_subplot()
     matplotlib.rc('font', **{'size': 12})
     ax.set_xlabel('1-Specificity')
     ax.set_ylabel('Sensitivity')
@@ -366,7 +366,7 @@ def roc_for_clfs(fpr_arr, tpr_arr, clf_names, title, save_path):
 
 def bar_chart(ys, xlabels, ylabel=None, title='Bar chart', save_path=None):
     fig = plt.figure(100, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
-    ax = fig.add_subplot(111)
+    ax = fig.add_subplot()
     ax.set_title(title)
     if ylabel is not None:
         ax.set_ylabel(ylabel)
@@ -377,9 +377,9 @@ def bar_chart(ys, xlabels, ylabel=None, title='Bar chart', save_path=None):
     plt.clf()
 
 
-def multibar_chart(num_lists, cates, xlabels, title='Bar chart', save_path=None):
+def multibar_chart(num_lists, cates, xlabels, title='Bar chart', save_path=None, xlabel_rot=0):
     fig = plt.figure(100, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
-    ax = fig.add_subplot(111)
+    ax = fig.add_subplot()
     ax.set_title(title)
     x = list(range(len(num_lists[0])))
     xticks = np.asarray(x)
@@ -394,10 +394,12 @@ def multibar_chart(num_lists, cates, xlabels, title='Bar chart', save_path=None)
         for i in range(len(x)):
             x[i] += width
         plt.bar(x, num_list, width=width, align='center', label=c, alpha=0.8)
-    plt.xticks(xticks + width / 2, xlabels)
-    plt.legend()
+    plt.xticks(xticks + width / 2, xlabels, rotation=xlabel_rot)
+    if None not in cates:
+        plt.legend()
     if save_path is not None:
         plt.savefig(save_path, dpi=600)
+    plt.close()
 
 
 def curve_with_xlabels(y, xlabels, cates, title='', save_path=None):
@@ -407,7 +409,7 @@ def curve_with_xlabels(y, xlabels, cates, title='', save_path=None):
     xticks = range(y.shape[-1])
     # fig = plt.figure(100, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
     fig = plt.figure()
-    ax = fig.add_subplot(111)
+    ax = fig.add_subplot()
     ax.set_title(title)
     ax.set_xticks(xticks)
     ax.set_xticklabels(xlabels, rotation=90)
@@ -416,3 +418,18 @@ def curve_with_xlabels(y, xlabels, cates, title='', save_path=None):
     plt.legend()
     if save_path is not None:
         plt.savefig(save_path, dpi=600)
+    plt.close()
+
+
+def bar_comparision_chart(num_lists, cates, xlabels, title='', save_path=None):
+    fig = plt.figure(100, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
+    ax = fig.add_subplot()
+    ax.set_title(title)
+    for sli, c in enumerate(cates):
+        plt.bar(x=xlabels, height=num_lists[sli], label=c, alpha=0.8)
+        for x, y in enumerate(num_lists[sli]):
+            plt.text(x, y, '%s' % y, ha='center', va='bottom')
+    plt.legend()
+    if save_path is not None:
+        plt.savefig(save_path, dpi=600)
+    plt.close()

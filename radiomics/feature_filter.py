@@ -1,20 +1,21 @@
 # -*- coding: UTF-8 -*-
 
 from __future__ import print_function
-import pandas as pd
-import numpy as np
-import os
-import json
-from itertools import cycle
-from sklearn.linear_model import lasso_path
-from sklearn.preprocessing import LabelEncoder, LabelBinarizer
-from sklearn.model_selection import KFold, StratifiedKFold
-from sklearn.feature_selection import VarianceThreshold, SelectKBest, f_classif
-from sklearn.linear_model import LassoCV
-import matplotlib.pyplot as plt
+
 import argparse
+import json
+import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 # from radiomics import tools
 import tools
+from sklearn.feature_selection import VarianceThreshold, SelectKBest, f_classif
+from sklearn.linear_model import LassoCV
+from sklearn.linear_model import lasso_path
+from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import shuffle
 
 
@@ -44,7 +45,6 @@ def _fs_lasso(x, y, output_path, filter_param, feature_res):
     plt.title('Mean square error paths on each fold')
     plt.axis('tight')
     plt.savefig(os.path.join(output_path, "lasso_mse.png"), dpi=600)
-    plt.show()
 
     feature_res["function"]['lasso']["image"] = {}
     feature_res["function"]['lasso']["image"]['lasso_mse'] = os.path.join(output_path, "lasso_mse.png")
@@ -64,7 +64,6 @@ def _fs_lasso(x, y, output_path, filter_param, feature_res):
     plt.title('Lasso Paths')
     plt.axis('tight')
     plt.savefig(os.path.join(output_path, "lasso_path.png"), dpi=600)
-    plt.show()
 
     feature_res["function"]["lasso"]["image"]["lasso_path"] = os.path.join(output_path, "lasso_path.png")
 
@@ -120,18 +119,17 @@ def _fs_lasso(x, y, output_path, filter_param, feature_res):
 
 
 def _fs_vt(data, output_path, filter_param, feature_res):
-
     try:
         selector = VarianceThreshold(**filter_param)
         selector.fit(data)
     except Exception:
         try:
-            selector = VarianceThreshold(**filter_param//2)
+            selector = VarianceThreshold(**filter_param // 2)
             selector.fit(data)
 
         except:
             try:
-                selector = VarianceThreshold(**filter_param//4)
+                selector = VarianceThreshold(**filter_param // 4)
                 selector.fit(data)
 
             except:
@@ -146,7 +144,8 @@ def _fs_vt(data, output_path, filter_param, feature_res):
     raw_variance.to_csv(os.path.join(output_path, "raw_filter_variance.csv"), index=False, encoding='utf-8')
 
     feature_res["function"]["vt"]["csv"] = {}
-    feature_res["function"]["vt"]["csv"]["raw_filter_variance.csv"] = os.path.join(output_path, "raw_filter_variance.csv")
+    feature_res["function"]["vt"]["csv"]["raw_filter_variance.csv"] = os.path.join(output_path,
+                                                                                   "raw_filter_variance.csv")
 
     return data[data.columns[selector.get_support(indices=True)]]
 
@@ -168,8 +167,21 @@ def _fs_kbest(x, y, output_path, filter_param, feature_res, k=300, score_method=
     with open(os.path.join(output_path, 'kbest_pvalues.json'), 'w') as fp:
         json.dump(p_dict, fp, indent=4, sort_keys=True)
 
+    # add by tiansong plot p-values
+    xlabels = []
+    num_lists = []
+    for n, v in p_dict.items():
+        xlabels.append(n)
+        num_lists.append(v)
+    num_lists = [num_lists]
+    cates = [None]
+    p_value_fig = os.path.join(output_path, 'kbest_p_values.png')
+    tools.multibar_chart(num_lists, cates, xlabels, save_path=p_value_fig, xlabel_rot=90)
     feature_res["function"]["k-best"]["json"] = {}
     feature_res["function"]["k-best"]["json"]["kbest_pvalues"] = os.path.join(output_path, 'kbest_pvalues.json')
+    if os.path.isfile(p_value_fig):
+        feature_res["function"]["k-best"]["fig"] = {"kbest_pvalues_fig": p_value_fig}
+    # end by tiansong
 
     # raw data
     chosen = [True if c in selector.get_support(indices=True) else False for c in range(len(x.columns))]
@@ -182,15 +194,15 @@ def _fs_kbest(x, y, output_path, filter_param, feature_res, k=300, score_method=
 
     return x[x.columns[cols]], p_dict
 
-    
+
 def main(df_path, target_path, output_path, filters, filters_params):
     feature_res = {
-    "Header": ["k-best", "lasso", "variance"],
-    "function": {
-        "k-best": {},
-        "lasso": {},
-        "vt": {}
-    },
+        "Header": ["k-best", "lasso", "variance"],
+        "function": {
+            "k-best": {},
+            "lasso": {},
+            "vt": {}
+        },
     }
     # class information
     feature_classes = ['glcm', 'gldm', 'glrlm', 'glszm', 'ngtdm', 'shape', 'firstorder']
@@ -256,7 +268,21 @@ def main(df_path, target_path, output_path, filters, filters_params):
 
             with open(os.path.join(output_path, 'variance.json'), 'w') as fp:
                 json.dump(vt_res, fp, indent=4, sort_keys=True)
-            pass
+            # add by tiansong
+            variance_out_fig = os.path.join(output_path, 'variance_filter.png')
+            bfs = []
+            afs = []
+            names = []
+            cates = ['before', 'after']
+            for item in vt_res:
+                names.append(item['name'])
+                bfs.append(item['before'])
+                afs.append(item['after'])
+            num_lists = [bfs, afs]
+            tools.bar_comparision_chart(num_lists, cates, names, title='', save_path=variance_out_fig)
+            if os.path.isfile(variance_out_fig):
+                feature_res["function"]["vt"]["fig"] = {"variance_filter_fig": variance_out_fig}
+            # end by tiansong
 
     selected = []
 

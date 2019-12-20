@@ -6,6 +6,7 @@ from itertools import compress
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import tools
 from scipy.spatial import distance
 from sklearn.cluster import KMeans
@@ -33,6 +34,9 @@ def main(df_path, target_path, output_path, k):
     feature_df = pd.read_csv(df_path)
     label_df = pd.read_csv(target_path)
     columns = feature_df.columns
+    # add by tiansong
+    output_json = {}
+    # end by tiansong
     key_columns = [x for x in columns if x in tools.keywords]
     feature_columns = [x for x in columns if x not in tools.keywords]
 
@@ -57,7 +61,6 @@ def main(df_path, target_path, output_path, k):
     plt.figure(figsize=(8, 5))
     # draw corr
 
-    import seaborn as sns
     sns.set()
     mask = np.zeros_like(corr, dtype=np.bool)
     mask[np.triu_indices_from(mask)] = True
@@ -69,9 +72,11 @@ def main(df_path, target_path, output_path, k):
                 # xticklabels=range(1, 1+len(corr.columns)),
                 # yticklabels=range(1, 1+len(corr.columns)),
                 mask=mask)
-    plt.savefig(os.path.join(output_path, "correlation.png"), bbox_inches='tight', dpi=600)
-    plt.show()
+    corr_fig = os.path.join(output_path, "correlation.png")
+    plt.savefig(corr_fig, bbox_inches='tight', dpi=600)
     plt.clf()
+    if os.path.isfile(corr_fig):
+        output_json['corr_fig'] = corr_fig
 
     # PCA
     pca_feature = df_norm.copy()
@@ -103,9 +108,10 @@ def main(df_path, target_path, output_path, k):
     plt.bar(np.arange(pca_components), variance_percent, align='center')
     plt.xticks(np.arange(pca_components), pc_names)
     plt.plot(np.cumsum(variance_percent))
-    plt.savefig(os.path.join(output_path, "pca.png"), dpi=600)
-    plt.show()
-
+    pca_fig = os.path.join(output_path, "pca.png")
+    plt.savefig(pca_fig, dpi=600)
+    if os.path.isfile(pca_fig):
+        output_json['pca_fig'] = pca_fig
     print("PCA success")
 
     # STATISTICS
@@ -152,13 +158,12 @@ def main(df_path, target_path, output_path, k):
     cluster_centers.to_csv(os.path.join(output_path, 'cluster_centroids.csv'), index=False, encoding='utf-8')
     cluster_centers_class = cluster_centers['class']
     cluster_aval_columns = cluster_centers.columns[1:]
-    # print(cluster_aval_columns, type(cluster_aval_columns.tolist()))
     cluster_nparr = cluster_centers[cluster_aval_columns].values
     cluster_out_fig = os.path.join(output_path, 'cluster_curve.png')
     tools.curve_with_xlabels(cluster_nparr, cluster_aval_columns.tolist(), cluster_centers_class.tolist(),
                              save_path=cluster_out_fig)
     if os.path.isfile(cluster_out_fig):
-        pass
+        output_json['cluster_fig'] = cluster_out_fig
 
     # cluster statistics
     cluster_count = cluster_res_df[['class']].groupby('class').size()
@@ -184,6 +189,10 @@ def main(df_path, target_path, output_path, k):
         json.dump(cluster_stat_json, fp, indent=4, sort_keys=True)
 
     print("Clustering success")
+
+    # add by tiansong record output figures
+    with open(os.path.join(output_path, 'analyze_out.json'), 'w') as f:
+        json.dump(output_json, f, indent=4)
 
 
 if __name__ == '__main__':
