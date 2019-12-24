@@ -6,6 +6,7 @@ import logging
 import os
 import shutil
 import sys
+from collections import defaultdict
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -33,6 +34,21 @@ def makedir_delete(p):
     if os.path.exists(p):
         shutil.rmtree(p)
     os.makedirs(p)
+
+
+def array2dict(arr1, arr2):
+    d = {}
+    for k, v in zip(arr1, arr2):
+        d[k] = v
+    return d
+
+
+def dict_layer_switch(d):
+    r = defaultdict(dict)
+    for k1, v1 in d.items():
+        for k2, v2 in v1.items():
+            r[k2][k1] = v2
+    return r
 
 
 def preprocessing(df):

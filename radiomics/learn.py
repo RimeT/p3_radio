@@ -8,11 +8,13 @@ import json
 import math
 import os
 import shutil
+import traceback
 import warnings
 from collections import defaultdict
 
 import numpy as np
 import pandas as pd
+import scipy.sparse as sp
 import tools
 import xgboost as xgb
 from sklearn import datasets
@@ -25,6 +27,7 @@ from sklearn.linear_model.stochastic_gradient import SGDClassifier
 from sklearn.metrics import classification_report, roc_curve, auc
 from sklearn.model_selection import StratifiedKFold, GridSearchCV, RandomizedSearchCV
 from sklearn.multiclass import OneVsRestClassifier
+from sklearn.multiclass import check_is_fitted
 from sklearn.naive_bayes import GaussianNB, BernoulliNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
@@ -38,6 +41,20 @@ def _array_nan2zero(arr):
         if math.isnan(item) or math.isinf(item):
             arr[idx] = 0.
     return arr
+
+
+def _ovresti_feature_importance(ovr):
+    """
+    class OneVSRest estimator get feature_importances_
+    """
+    check_is_fitted(ovr, 'estimators_')
+    if not hasattr(ovr.estimators_[0], "feature_importances_"):
+        raise AttributeError(
+            "Base estimator doesn't have a feature_importances_ attribute.")
+    coefs = [e.feature_importances_ for e in ovr.estimators_]
+    if sp.issparse(coefs[0]):
+        return sp.vstack(coefs)
+    return np.vstack(coefs)
 
 
 def _get_classifier(m, model_params, tv_data, is_binary, result, random_state=42, class_nb=None, auto_opt=False):
@@ -232,8 +249,8 @@ def test_analyze(clf_name, clf, out_dir, df, df_learn, test_feature, encoded_tes
 
     stats['roc'] = roc
     stats['accuracy'] = acc
-    stats['sensitivity'] = sen
-    stats['specificity'] = spe
+    stats['sensitivity'] = tools.array2dict(origin_classes, sen)
+    stats['specificity'] = tools.array2dict(origin_classes, spe)
     return stats
 
 
@@ -411,18 +428,27 @@ def classification_train(clf, clf_name, summary_results, tv_feature, cv, tv_labe
         clf.fit(tx, ty)
         clf_feature = ['decision', 'random']
         if clf_name in clf_feature:
-            feature_importace = clf.feature_importances_
-            np.savetxt(os.path.join(output_path, clf_name + "_" + "feature_importance.csv"), feature_importace,
-                       delimiter=',')
-            result["train"][clf_name]["cross_valid"][fold]["feature_importace"] = os.path.join(output_path,
-                                                                                               clf_name + "_" + "feature_importance.csv")
+            try:
+                if is_binary:
+                    feature_importance = clf.feature_importances_
+                else:
+                    feature_importance = _ovresti_feature_importance(clf)
+                np.savetxt(os.path.join(output_path, clf_name + "_" + "feature_importance.csv"), feature_importance,
+                           delimiter=',')
+                result["train"][clf_name]["cross_valid"][fold]["feature_importance"] = os.path.join(output_path,
+                                                                                                    clf_name + "_" + "feature_importance.csv")
+            except:
+                traceback.print_exc()
 
         if clf_name == "logistic":
-            feature_importace = clf.coef_
-            np.savetxt(os.path.join(output_path, clf_name + "_" + "feature_importance.csv"), feature_importace,
-                       delimiter=',')
-            result["train"][clf_name]["cross_valid"][fold]["feature_importace"] = os.path.join(output_path,
-                                                                                               clf_name + "_" + "feature_importance.csv")
+            try:
+                feature_importance = clf.coef_
+                np.savetxt(os.path.join(output_path, clf_name + "_" + "feature_importance.csv"), feature_importance,
+                           delimiter=',')
+                result["train"][clf_name]["cross_valid"][fold]["feature_importance"] = os.path.join(output_path,
+                                                                                                   clf_name + "_" + "feature_importance.csv")
+            except:
+                traceback.print_exc()
         # save model
         joblib.dump(clf, os.path.join(fold_dataset_path, 'model.joblib'))
 
@@ -603,7 +629,7 @@ def testing(clf_names, output_path, temp_dir, label_encoder, df, df_learn, test_
         best_indicator = 0
         for cr in glob.glob(os.path.join(temp_dir, clf_name) + '/fold_*/valid/acc.json'):
             acc_score = tools.load_json(cr)["acc"]
-            if acc_score > best_indicator:
+            if acc_score >= best_indicator:
                 best_indicator = acc_score
                 best_fold = int(cr.split('fold_')[1].split('/')[0])
 
@@ -639,14 +665,19 @@ def testing(clf_names, output_path, temp_dir, label_encoder, df, df_learn, test_
             xs.append(k)
             ys.append(subv)
         if stname in ['accuracy', ]:
-            result['testing_summary']['stat_compare'][stname] = ys
+            result['testing_summary']['stat_compare'][stname] = tools.array2dict(clf_names, ys)
         else:
-            result['testing_summary']['stat_compare_by_class'][stname] = ys
+            result['testing_summary']['stat_compare_by_class'][stname] = tools.dict_layer_switch(
+                tools.array2dict(clf_names, ys))
     st_order = []
     num_lists = []
     for stname, v in result['testing_summary']['stat_compare'].items():
-        num_lists.append(v)
         st_order.append(stname)
+        vs = []
+        for k1 in clf_names:
+            vs.append(v[k1])
+        num_lists.append(vs)
+
     num_lists = np.asarray(num_lists)
     num_lists = np.transpose(num_lists, (1, 0))
     stat_compare_png = os.path.join(output_path, 'testing_stat_compare.png')
