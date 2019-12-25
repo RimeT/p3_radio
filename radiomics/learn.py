@@ -230,7 +230,8 @@ def test_analyze(clf_name, clf, out_dir, df, df_learn, test_feature, encoded_tes
     samples["image"] = df[df_learn['dataset'] == 1]["image"].tolist()
     samples = samples[["image", "mask"] + [x for x in samples.columns if x not in ["image", "mask"]]]
     class_report.to_csv(os.path.join(out_dir, 'report.csv'), index=False, encoding='utf-8')
-    samples.to_csv(os.path.join(out_dir, 'samples_result.csv'), index=False, encoding='utf-8')
+    test_samples_result_path = os.path.join(out_dir, 'test_samples_result.csv')
+    samples.to_csv(test_samples_result_path, index=False, encoding='utf-8')
 
     tools.save_json(roc, os.path.join(out_dir, 'roc.json'))
 
@@ -241,7 +242,7 @@ def test_analyze(clf_name, clf, out_dir, df, df_learn, test_feature, encoded_tes
     # test analyze  ***
     result["test"][clf_name]["csv"] = {}
     result["test"][clf_name]["csv"]["report"] = os.path.join(out_dir, 'report.csv')
-    result["test"][clf_name]["csv"]["samples_result"] = os.path.join(out_dir, 'samples_result.csv')
+    result["test"][clf_name]["csv"]["samples_result"] = test_samples_result_path
     result["test"][clf_name]["json"]["roc"] = os.path.join(out_dir, 'roc.json')
 
     result["test"][clf_name]["json"]["sen"] = os.path.join(out_dir, 'sen.json')
@@ -372,14 +373,22 @@ def get_predict_report(clf, x, y, label_encoder, is_binary, origin_classes, sess
     return predicts, proba, acc, report, auc_report, fpr, tpr, roc, samples, Sen, Spe
 
 
-def tv_analyze(clf, clf_name, x, y, fold, data_index, d, temp_dir, label_encoder, is_binary, origin_classes, result):
+def tv_analyze(clf, clf_name, x, y, fold, data_index, d, temp_dir, label_encoder, is_binary, origin_classes, immask,
+               result):
     fold_path = _get_fold_folder(clf_name, fold, d, temp_dir=temp_dir)
     tools.makedir_ignore(fold_path)
     predicts, proba, acc, class_report, auc_report, fpr, tpr, roc, samples, sen, spe = get_predict_report(clf, x, y,
                                                                                                           label_encoder,
                                                                                                           is_binary,
                                                                                                           origin_classes)
-
+    # add by tiansong for samples_prediction
+    # immask is full image_path and mask_path for train+validation
+    samples['mask'] = immask['mask'].values[data_index]
+    samples["image"] = immask['image'].values[data_index]
+    samples = samples[["image", "mask"] + [x for x in samples.columns if x not in ["image", "mask"]]]
+    d_samples_result_path = os.path.join(fold_path, 'samples_result.csv')
+    samples.to_csv(d_samples_result_path, index=False, encoding='utf-8')
+    # end by tiansong
     _get_roc_train(clf_name, fold, d, fpr, tpr, fold_path, result)
     tools.save_json({'acc': acc}, os.path.join(fold_path, 'acc.json'))
     class_report.to_csv(os.path.join(fold_path, 'class_report.csv'), index=False, encoding='utf-8')
@@ -402,6 +411,7 @@ def tv_analyze(clf, clf_name, x, y, fold, data_index, d, temp_dir, label_encoder
     result["train"][clf_name]["cross_valid"][fold][d]["csv"]["auc_report"] = os.path.join(fold_path, 'auc_report.csv')
     result["train"][clf_name]["cross_valid"][fold][d]["csv"]["x_data"] = os.path.join(fold_path, 'x.csv')
     result["train"][clf_name]["cross_valid"][fold][d]["csv"]["y_data"] = os.path.join(fold_path, 'y.csv')
+    result["train"][clf_name]["cross_valid"][fold][d]["csv"]["samples_result"] = d_samples_result_path
 
     result["train"][clf_name]["cross_valid"][fold][d]["json"]["sen"] = os.path.join(fold_path, 'sen.json')
     result["train"][clf_name]["cross_valid"][fold][d]["json"]["spe"] = os.path.join(fold_path, 'spe.json')
@@ -410,7 +420,7 @@ def tv_analyze(clf, clf_name, x, y, fold, data_index, d, temp_dir, label_encoder
 
 
 def classification_train(clf, clf_name, summary_results, tv_feature, cv, tv_label, encoded_tv_label, output_path,
-                         temp_dir, label_encoder, is_binary, origin_classes, result):  # save
+                         temp_dir, label_encoder, is_binary, origin_classes, immask, result):  # save
     cv_res = dict()
     # add by tiansong
     train_clf_stats = {}
@@ -471,7 +481,7 @@ def classification_train(clf, clf_name, summary_results, tv_feature, cv, tv_labe
             fpr, tpr = tv_analyze(clf, clf_name, cv_res[fold][d]['x'], cv_res[fold][d]['y'], fold=fold,
                                   data_index=cv_res[fold][d]['idx'], d=d, temp_dir=temp_dir,
                                   label_encoder=label_encoder, is_binary=is_binary, origin_classes=origin_classes,
-                                  result=result)
+                                  immask=immask, result=result)
 
             cv_res[fold][d]['roc'] = dict()
             for l in origin_classes:
@@ -562,7 +572,7 @@ def classification_train(clf, clf_name, summary_results, tv_feature, cv, tv_labe
 
 
 def learn(clf_names, models, models_params, summary_results, tv_feature, tv_label, is_binary, random_state, class_nb,
-          auto_opt, encoded_tv_label, output_path, temp_dir, label_encoder, origin_classes, cv, result):
+          auto_opt, encoded_tv_label, output_path, temp_dir, label_encoder, origin_classes, cv, immask, result):
     # initialize
     result['training_summary'] = dict()
     result['training_summary']['stat_compare'] = defaultdict(dict)
@@ -581,6 +591,7 @@ def learn(clf_names, models, models_params, summary_results, tv_feature, tv_labe
                                                temp_dir=temp_dir,
                                                label_encoder=label_encoder, is_binary=is_binary,
                                                origin_classes=origin_classes,
+                                               immask=immask,
                                                result=result)
         # add by tiansong roc
         if roc_compare is None:
@@ -630,7 +641,7 @@ def testing(clf_names, output_path, temp_dir, label_encoder, df, df_learn, test_
     rocs_compare = defaultdict(dict)
     stats_compare = defaultdict(dict)
     result['testing_summary'] = defaultdict(dict)
-    result['testing_summary']['feature_importance'] = defaultdict(dict)
+    result['training_summary']['feature_importance'] = defaultdict(dict)
     for clf_name in clf_names:
         res_path = os.path.join(output_path, "models", clf_name)
         tools.makedir_delete(res_path)
@@ -649,7 +660,14 @@ def testing(clf_names, output_path, temp_dir, label_encoder, df, df_learn, test_
         if os.path.isfile(src_feat_import_path):
             dest_feat_import_path = os.path.join(res_path, 'feature_importance.csv')
             shutil.copy(src_feat_import_path, dest_feat_import_path)
-            result['testing_summary']['feature_importance'][clf_name] = dest_feat_import_path
+            result['training_summary']['feature_importance'][clf_name] = dest_feat_import_path
+        # tv_samples_result
+        for d in ['train', 'valid']:
+            samples_result_srcpath = _get_fold_folder(clf_name, best_fold, os.path.join(d, 'samples_result.csv'),
+                                                      temp_dir=temp_dir)
+            samples_result_destpath = os.path.join(res_path, f"{d}_samples_result.csv")
+            shutil.copy(samples_result_srcpath, samples_result_destpath)
+            result['train'][clf_name]['csv'][f'{d}_samples_result'] = samples_result_destpath
         # end by tiansong
         np.save(res_path + '/encoder.npy', label_encoder.classes_)
         model = joblib.load(model_path)
@@ -765,6 +783,11 @@ def main(feature_path, target_path, tags_path, models, output_path, cv, auto_opt
     tv_df = df_learn[df_learn['dataset'] == 0]
     tv_label = [str(l) for l in tv_df.label.to_list()]
     tv_feature = tv_df[feature_columns]
+    # add by tiansong
+    tv_immask = {}
+    tv_immask['image'] = df[df_learn['dataset'] == 0]['image']
+    tv_immask['mask'] = df[df_learn['dataset'] == 0]['mask']
+    # end by tiansong
 
     # 测试集
     test_df = df_learn[df_learn['dataset'] == 1]
@@ -809,7 +832,7 @@ def main(feature_path, target_path, tags_path, models, output_path, cv, auto_opt
           class_nb=class_nb, auto_opt=auto_opt,
           encoded_tv_label=encoded_tv_label, output_path=output_path,
           temp_dir=TEMP_DIR, label_encoder=label_encoder,
-          origin_classes=origin_classes, cv=cv, result=result)
+          origin_classes=origin_classes, cv=cv, immask=tv_immask, result=result)
     testing(clf_names, output_path=output_path, temp_dir=TEMP_DIR, label_encoder=label_encoder, df=df,
             df_learn=df_learn, test_feature=test_feature, encoded_test_label=encoded_test_label, is_binary=is_binary,
             origin_classes=origin_classes, result=result)
