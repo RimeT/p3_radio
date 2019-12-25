@@ -430,23 +430,31 @@ def classification_train(clf, clf_name, summary_results, tv_feature, cv, tv_labe
         if clf_name in clf_feature:
             try:
                 if is_binary:
-                    feature_importance = clf.feature_importances_
+                    feature_importance = np.expand_dims(clf.feature_importances_, axis=0)
+                    fi_classes = origin_classes[1:].copy()
                 else:
                     feature_importance = _ovresti_feature_importance(clf)
-                np.savetxt(os.path.join(output_path, clf_name + "_" + "feature_importance.csv"), feature_importance,
-                           delimiter=',')
-                result["train"][clf_name]["cross_valid"][fold]["feature_importance"] = os.path.join(output_path,
-                                                                                                    clf_name + "_" + "feature_importance.csv")
+                    fi_classes = origin_classes.copy()
+                fi_df = pd.DataFrame(feature_importance, columns=tv_feature.columns)
+                fi_df.insert(0, 'class_names', fi_classes)
+                feat_import_csv = os.path.join(fold_dataset_path, "feature_importance.csv")
+                fi_df.to_csv(feat_import_csv, index=False)
+                result["train"][clf_name]["cross_valid"][fold]["feature_importance"] = feat_import_csv
             except:
                 traceback.print_exc()
 
         if clf_name == "logistic":
             try:
                 feature_importance = clf.coef_
-                np.savetxt(os.path.join(output_path, clf_name + "_" + "feature_importance.csv"), feature_importance,
-                           delimiter=',')
-                result["train"][clf_name]["cross_valid"][fold]["feature_importance"] = os.path.join(output_path,
-                                                                                                   clf_name + "_" + "feature_importance.csv")
+                if is_binary:
+                    fi_classes = origin_classes[1:].copy()
+                else:
+                    fi_classes = origin_classes.copy()
+                fi_df = pd.DataFrame(feature_importance, columns=tv_feature.columns)
+                fi_df.insert(0, 'class_names', fi_classes)
+                feat_import_csv = os.path.join(fold_dataset_path, "feature_importance.csv")
+                fi_df.to_csv(feat_import_csv, index=False)
+                result["train"][clf_name]["cross_valid"][fold]["feature_importance"] = feat_import_csv
             except:
                 traceback.print_exc()
         # save model
@@ -622,6 +630,7 @@ def testing(clf_names, output_path, temp_dir, label_encoder, df, df_learn, test_
     rocs_compare = defaultdict(dict)
     stats_compare = defaultdict(dict)
     result['testing_summary'] = defaultdict(dict)
+    result['testing_summary']['feature_importance'] = defaultdict(dict)
     for clf_name in clf_names:
         res_path = os.path.join(output_path, "models", clf_name)
         tools.makedir_delete(res_path)
@@ -635,6 +644,13 @@ def testing(clf_names, output_path, temp_dir, label_encoder, df, df_learn, test_
 
         model_path = _get_fold_folder(clf_name, best_fold, 'model.joblib', temp_dir=temp_dir)
         shutil.copy(model_path, res_path + '/model.joblib')
+        # add by tiansong feature_importance
+        src_feat_import_path = _get_fold_folder(clf_name, best_fold, 'feature_importance.csv', temp_dir=temp_dir)
+        if os.path.isfile(src_feat_import_path):
+            dest_feat_import_path = os.path.join(res_path, 'feature_importance.csv')
+            shutil.copy(src_feat_import_path, dest_feat_import_path)
+            result['testing_summary']['feature_importance'][clf_name] = dest_feat_import_path
+        # end by tiansong
         np.save(res_path + '/encoder.npy', label_encoder.classes_)
         model = joblib.load(model_path)
         clf_stats = test_analyze(clf_name, model, res_path, df, df_learn, test_feature, encoded_test_label,
