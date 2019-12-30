@@ -151,11 +151,14 @@ def _fs_vt(data, output_path, filter_param, feature_res):
 
 
 def _fs_kbest(x, y, output_path, filter_param, feature_res, k=300, score_method=f_classif):
-    if k > x.shape[1]:
-        k = x.shape[1]
-
     columns = x.columns
+    # add by tiansong
+    if len(columns) < k:
+        print(f"k columns = {len(columns)}, k = {k}")
+        filter_param = filter_param.copy()
+        filter_param['k'] = 'all'
     selector = SelectKBest(**filter_param)
+    # end by tiansong
 
     feature_res["function"]["k-best"]["parmeter"] = filter_param
 
