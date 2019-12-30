@@ -220,46 +220,17 @@ class info_filter(logging.Filter):
 
 
 def get_compact_range(mask_arr):
-    z, x, y = mask_arr.shape[0], mask_arr.shape[2], mask_arr.shape[1]
-    valid_range_z = [0, z - 1]
-    valid_range_x = [0, x - 1]
-    valid_range_y = [0, y - 1]
-
-    def get_sum(m, idx):
-        if idx == 0:
-            return np.sum(mask_arr[m, :, :])
-        elif idx == 1:
-            return np.sum(mask_arr[:, m, :])
-        else:
-            return np.sum(mask_arr[:, :, m])
-
-    def get_valid_range(c, valid_range, idx):
-        assert c > 4, "axis {} shape is {} less than 4".format(idx, c)
-
-        for m in range(c):
-            if get_sum(m, idx) > 0:
-                valid_range[0] = m
-                break
-
-        for m in reversed(range(c)):
-            if get_sum(m, idx) > 0:
-                valid_range[1] = m
-                break
-
-        nb_layers = valid_range[1] - valid_range[0] + 1
-        margin = nb_layers - 3
-        if margin < 1:
-            while valid_range[1] - valid_range[0] + 1 - 3 < 1:
-                if valid_range[0] > 0:
-                    valid_range[0] -= 1
-                else:
-                    valid_range[1] += 1
-
-    get_valid_range(z, valid_range_z, 0)
-    get_valid_range(y, valid_range_y, 1)
-    get_valid_range(x, valid_range_x, 2)
-
-    return valid_range_z, valid_range_y, valid_range_x
+    if np.sum(mask_arr) < 1:
+        raise ValueError('Zero mask.')
+    xyz = np.nonzero(mask_arr)
+    xmin = np.min(xyz[0])
+    xmax = np.max(xyz[0])
+    ymin = np.min(xyz[1])
+    ymax = np.max(xyz[1])
+    zmin = np.min(xyz[2])
+    zmax = np.max(xyz[2])
+    result = ([xmin, xmax], [ymin, ymax], [zmin, zmax])
+    return result
 
 
 def plot_confusion_matrix(cm,

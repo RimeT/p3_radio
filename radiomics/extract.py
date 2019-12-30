@@ -111,34 +111,23 @@ def extract_feature(case):
             extractor.enableFeatureClassByName('firstorder')
             extractor.enableFeatureClassByName('shape')
             extractor.enableFeatureClassByName('glcm')
-            extractor.enableFeatureClassByName('glrlm')
+            if min(mask_arr.shape) > 1: # may raise FloatingPointError in 2D image
+                extractor.enableFeatureClassByName('glrlm')
 
         # 去掉mask周围的0，得到一个缩小版的mask，再生成image，加速运算
-        if min(mask_arr.shape) > 5:
+        valid_range_z, valid_range_y, valid_range_x = get_compact_range(mask_arr)
 
-            valid_range_z, valid_range_y, valid_range_x = get_compact_range(mask_arr)
+        mask_arr = mask_arr[
+                   valid_range_z[0]: valid_range_z[1] + 1,
+                   valid_range_y[0]: valid_range_y[1] + 1,
+                   valid_range_x[0]: valid_range_x[1] + 1]
 
-            mask_arr = mask_arr[
-                       valid_range_z[0]: valid_range_z[1] + 1,
-                       valid_range_y[0]: valid_range_y[1] + 1,
-                       valid_range_x[0]: valid_range_x[1] + 1]
-
-            img_arr = img_arr[
-                      valid_range_z[0]: valid_range_z[1] + 1,
-                      valid_range_y[0]: valid_range_y[1] + 1,
-                      valid_range_x[0]: valid_range_x[1] + 1]
+        img_arr = img_arr[
+                  valid_range_z[0]: valid_range_z[1] + 1,
+                  valid_range_y[0]: valid_range_y[1] + 1,
+                  valid_range_x[0]: valid_range_x[1] + 1]
 
         mask_itk = sitk.GetImageFromArray(mask_arr)
-
-
-        # for c in range(img_arr.shape[0]):
-        #     image_sample = np.array(Image.fromarray(img_arr[c, :, :]).convert("RGB"))
-        #     mask_layer = mask_arr.astype(image_sample.dtype)[c]
-        #     image_sample[:, :, 0] += mask_layer * 50
-        #     image_sample[image_sample > 255] = 255
-        #     image_show = Image.fromarray(image_sample)
-        #     plt.imshow(image_show)
-        #     plt.show()
 
         # 保证image和mask的Spacing等信息一致
         img_itk = sitk.GetImageFromArray(img_arr)
