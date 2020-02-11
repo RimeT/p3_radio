@@ -615,7 +615,7 @@ def learn(clf_names, models, models_params, summary_results, tv_feature, tv_labe
         num_lists.append(ys)
     num_lists = np.asarray(num_lists)
     num_lists = np.transpose(num_lists, (1, 0))
-    tools.multibar_chart(num_lists.tolist(), cates, xlabels, title='', save_path=tv_acc_png)
+    tools.multibar_chart(num_lists.tolist(), cates, xlabels, title='', save_path=tv_acc_png, xlabel_rot=15)
     if os.path.isfile(tv_acc_png):
         result['training_summary']['stat_compare_fig'] = {'accuracy': tv_acc_png}
     # roc comparision
@@ -715,7 +715,7 @@ def testing(clf_names, output_path, temp_dir, label_encoder, df, df_learn, test_
     num_lists = np.asarray(num_lists)
     num_lists = np.transpose(num_lists, (1, 0))
     stat_compare_png = os.path.join(output_path, 'testing_stat_compare.png')
-    tools.multibar_chart(num_lists.tolist(), clf_names, st_order, title='', save_path=stat_compare_png)
+    tools.multibar_chart(num_lists.tolist(), clf_names, st_order, title='', save_path=stat_compare_png, xlabel_rot=15)
     if os.path.isfile(stat_compare_png):
         result['testing_summary']['stat_compare_fig'] = {'accuracy': stat_compare_png}
     # TODO: specificity sensitivity compare by classes
@@ -833,9 +833,13 @@ def main(feature_path, target_path, tags_path, models, output_path, cv, auto_opt
           encoded_tv_label=encoded_tv_label, output_path=output_path,
           temp_dir=TEMP_DIR, label_encoder=label_encoder,
           origin_classes=origin_classes, cv=cv, immask=tv_immask, result=result)
-    testing(clf_names, output_path=output_path, temp_dir=TEMP_DIR, label_encoder=label_encoder, df=df,
-            df_learn=df_learn, test_feature=test_feature, encoded_test_label=encoded_test_label, is_binary=is_binary,
-            origin_classes=origin_classes, result=result)
+    # add by tiansong
+    if test_feature.shape[0] > 0:
+        testing(clf_names, output_path=output_path, temp_dir=TEMP_DIR, label_encoder=label_encoder, df=df,
+                df_learn=df_learn, test_feature=test_feature, encoded_test_label=encoded_test_label, is_binary=is_binary,
+                origin_classes=origin_classes, result=result)
+    else:
+       print(f"No testing dataset {test_feature.shape}")
 
     return result
 

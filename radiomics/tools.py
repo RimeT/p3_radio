@@ -268,7 +268,7 @@ def plot_confusion_matrix(cm,
 
 
 def roc_for_cv(fpr_arr, tpr_arr, class_name, save_path, fold_nb=5):
-    plt.figure(num=300, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
+    plt.figure(num=300, figsize=(8, 8), dpi=80, facecolor='w', edgecolor='k')
     matplotlib.rc('font', **{'size': 12})
 
     tprs = []
@@ -306,12 +306,12 @@ def roc_for_cv(fpr_arr, tpr_arr, class_name, save_path, fold_nb=5):
     plt.ylabel('True Positive Rate')
     plt.title('Receiver operating characteristic - class ' + str(class_name))
     plt.legend(loc="lower right")
-    plt.savefig(save_path, dpi=600)
+    plt.savefig(save_path, dpi=300)
     plt.clf()
 
 
 def roc_for_class(fpr_arr, tpr_arr, class_name, save_path):
-    plt.figure(100, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
+    plt.figure(100, figsize=(8, 8), dpi=80, facecolor='w', edgecolor='k')
     matplotlib.rc('font', **{'size': 12})
 
     for i in range(len(fpr_arr)):
@@ -324,12 +324,12 @@ def roc_for_class(fpr_arr, tpr_arr, class_name, save_path):
     plt.ylabel('True Positive Rate')
     plt.title('Receiver operating characteristic')
     plt.legend(loc="lower right")
-    plt.savefig(save_path, dpi=600)
+    plt.savefig(save_path, dpi=300)
     plt.clf()
 
 
 def roc_for_clfs(fpr_arr, tpr_arr, clf_names, title, save_path):
-    fig = plt.figure(100, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
+    fig = plt.figure(100, figsize=(8, 8), dpi=80, facecolor='w', edgecolor='k')
     ax = fig.add_subplot()
     matplotlib.rc('font', **{'size': 12})
     ax.set_xlabel('1-Specificity')
@@ -346,7 +346,7 @@ def roc_for_clfs(fpr_arr, tpr_arr, clf_names, title, save_path):
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.0])
     plt.legend(loc="lower right")
-    plt.savefig(save_path, dpi=600)
+    plt.savefig(save_path, dpi=300)
     plt.clf()
     return auc_by_clfs
 

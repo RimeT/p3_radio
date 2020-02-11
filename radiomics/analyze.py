@@ -73,7 +73,7 @@ def main(df_path, target_path, output_path, k):
                 # yticklabels=range(1, 1+len(corr.columns)),
                 mask=mask)
     corr_fig = os.path.join(output_path, "correlation.png")
-    plt.savefig(corr_fig, bbox_inches='tight', dpi=600)
+    plt.savefig(corr_fig, bbox_inches='tight', dpi=300)
     plt.clf()
     if os.path.isfile(corr_fig):
         output_json['corr_fig'] = corr_fig
