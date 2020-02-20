@@ -58,7 +58,7 @@ def main(df_path, target_path, output_path, k):
     corr.to_csv(os.path.join(output_path, 'corr.csv'), encoding='utf-8')
     # fig, ax = plt.subplots(figsize=(8, 5))
     # fig, ax = plt.subplots()
-    plt.figure(figsize=(8, 5))
+    plt.figure(figsize=(8, 8))
     # draw corr
 
     sns.set()
