@@ -502,7 +502,10 @@ def classification_train(clf, clf_name, summary_results, tv_feature, cv, tv_labe
             auc_report['class'] = auc_report['class'].astype(str)
             class_report['class'] = class_report['class'].astype(str)
             report_df = auc_report.merge(class_report, on='class')
-            report_df = report_df[['class', 'AUC', 'recall', 'f1-score', 'precision']]
+            ignore_columns = ['support']
+            report_new_columns = list(report_df.columns)
+            report_new_columns = [x for x in report_new_columns if x not in ignore_columns]
+            report_df = report_df[report_new_columns]
             report_df.set_index('class', inplace=True)
             class_report_cv += [report_df]
             # acc
