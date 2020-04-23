@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import tools
 from sklearn.externals import joblib
+from time import time
 
 
 # 2D数据参数测试
@@ -41,11 +42,17 @@ def main(df_path, model_path, output_path, encoder_path, scalar_path, target_pat
         raise ValueError("输入特征需要和训练模型时选择的特征一致")
 
     # load model
+    t1 = time()
     clf = joblib.load(model_path)
 
     predict_results = clf.predict_proba(data)
     res = list(np.load(encoder_path))
     predict_results = pd.DataFrame(predict_results, columns=res)
+    predict_results['dataset'] = pd.Series(image_names)
+    num_label = []
+    for idx, row in label.iterrows():
+        num_label.append(res.index(row['label']))
+    predict_results['label'] = pd.Series(num_label, name='label')
     predict_results.to_csv(os.path.join(output_path, 'predict_scores.csv'), index=None)
     if target_df is not None:
         testing_results = []
@@ -61,6 +68,7 @@ def main(df_path, model_path, output_path, encoder_path, scalar_path, target_pat
         testing_results = {'Testing_Results': testing_results, 'DL_Type': "classification/case", "Class_Names": label}
         with open(os.path.join(output_path, 'result.json'), 'w') as f:
             json.dump(testing_results, f, indent=4, ensure_ascii=False)
+    print("testing costs: {}".format(time() - t1))
 
 
 if __name__ == '__main__':

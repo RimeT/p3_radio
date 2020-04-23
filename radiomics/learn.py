@@ -540,7 +540,7 @@ def classification_train(clf, clf_name, summary_results, tv_feature, cv, tv_labe
                 raise ValueError(f'{clf_name} training fpr tpr len != 1')
             # end by tiansong
             tools.roc_for_cv(fpr, tpr, l,
-                             os.path.join(_get_cv_folder(clf_name, d, temp_dir=temp_dir), str(l) + "_.png"))
+                             os.path.join(_get_cv_folder(clf_name, d, temp_dir=temp_dir), str(l) + "_.png"), fold_nb=cv)
 
             result["train"][clf_name]["cv"]["image"][l][d]["roc"] = os.path.join(
                 _get_cv_folder(clf_name, d, temp_dir=temp_dir), str(l) + "_.png")
