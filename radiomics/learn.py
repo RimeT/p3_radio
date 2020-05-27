@@ -17,6 +17,7 @@ import pandas as pd
 import scipy.sparse as sp
 import tools
 import xgboost as xgb
+import catboost as cgb
 from sklearn import datasets
 from sklearn import svm
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
@@ -179,6 +180,11 @@ def _get_classifier(m, model_params, tv_data, is_binary, result, random_state=42
         else:
             return xgb.XGBClassifier(objective='multi:softprob', n_estimators=200, max_depth=200,
                                      random_state=random_state, num_class=class_nb), class_name
+    elif 'catboost' in m:
+        if is_binary:
+            return cgb.CatBoostClassifier(loss_function='Logloss', max_depth=10, verbose=True, task_type='CPU'), class_name
+        else:
+            return cgb.CatBoostClassifier(loss_function='MultiClass', max_depth=10, verbose=True, task_type='CPU'), class_name
     elif 'mlp' == m:
         # class_name = "Deep Learning"
         if auto_opt:
@@ -735,6 +741,7 @@ def main(feature_path, target_path, tags_path, models, output_path, cv, auto_opt
         'decision': {},
         'random': {},
         'xgboost': {},
+        'catboost': {},
         'mlp': {},
         'adaboost': {},
         'lineardiscriminant': {},
@@ -745,7 +752,7 @@ def main(feature_path, target_path, tags_path, models, output_path, cv, auto_opt
 
     result = {
         'classes': ['svc', 'nusvc', 'bayesgaussian', 'bayesbernoulli', 'knn', 'logistic', 'decision', 'random',
-                    'xgboost', 'mlp', 'adaboost', 'lineardiscriminant', 'quadraticdiscriminant', 'sgd', 'bagging'],
+                    'xgboost', 'catboost', 'mlp', 'adaboost', 'lineardiscriminant', 'quadraticdiscriminant', 'sgd', 'bagging'],
         'train': param_dict,
         'test': copy.deepcopy(param_dict),
     }

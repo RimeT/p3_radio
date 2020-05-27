@@ -12,11 +12,12 @@ import pandas as pd
 # from radiomics import tools
 import tools
 from sklearn.feature_selection import VarianceThreshold, SelectKBest, f_classif
-from sklearn.linear_model import LassoCV
+from sklearn.linear_model import LassoCV, RidgeClassifierCV, LogisticRegressionCV
 from sklearn.linear_model import lasso_path
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import shuffle
+from xgboost import XGBClassifier
 
 
 def _fs_lasso(x, y, output_path, filter_param, feature_res):
@@ -118,6 +119,56 @@ def _fs_lasso(x, y, output_path, filter_param, feature_res):
     return x[features[mask_cv]]
 
 
+def _fs_ridge(x, y, output_path, filter_param, feature_res):
+    y = y * 1.0
+    features = x.columns
+
+    x, y = shuffle(x, y, random_state=55)
+
+    skf = StratifiedKFold(n_splits=5, random_state=2).split(x, y)  # k折交叉切分
+
+    model = RidgeClassifierCV(**filter_param, cv=skf).fit(x, y)
+    mask_cv = (np.abs(model.coef_) > 0.10).ravel()
+    mask_cv = [i for i, m in enumerate(mask_cv) if m == True]
+    # raw data
+    chosen = [True if c in mask_cv else False for c in range(len(model.coef_))]
+    raw_ridge = pd.DataFrame(zip(features, model.coef_, chosen), columns=["features", "coef", "chosen"])
+    raw_ridge.to_csv(os.path.join(output_path, "raw_filter_ridge.csv"), index=False, encoding='utf-8')
+    return x[features[mask_cv]]
+
+
+def _fs_l1logistic(x, y, output_path, filter_param, feature_res):
+    y = y * 1.0
+    features = x.columns
+
+    x, y = shuffle(x, y, random_state=55)
+
+    skf = StratifiedKFold(n_splits=5, random_state=2).split(x, y)  # k折交叉切分
+
+    filter_param['solver'] = 'liblinear'
+    filter_param['penalty'] = 'l1'
+    model = LogisticRegressionCV(**filter_param, cv=skf)
+    model.fit(x, y)
+    mask_cv = (np.abs(model.coef_) != 0).ravel()
+    mask_cv = [i for i, m in enumerate(mask_cv) if m == True]
+    # raw data
+    chosen = [True if c in mask_cv else False for c in range(len(model.coef_))]
+    raw_ridge = pd.DataFrame(zip(features, model.coef_, chosen), columns=["features", "coef", "chosen"])
+    raw_ridge.to_csv(os.path.join(output_path, "raw_filter_ridge.csv"), index=False, encoding='utf-8')
+    return x[features[mask_cv]]
+
+
+def _fs_xgboost(x, y, output_path, filter_param, feature_res):
+    y = y * 1.0
+    features = x.columns
+    x, y = shuffle(x, y, random_state=55)
+    model = XGBClassifier()
+    model.fit(x, y)
+    thresholds = model.feature_importances_
+    # print(thresholds)
+    return x[features[thresholds > 0]]
+
+
 def _fs_vt(data, output_path, filter_param, feature_res):
     try:
         selector = VarianceThreshold(**filter_param)
@@ -200,10 +251,13 @@ def _fs_kbest(x, y, output_path, filter_param, feature_res, k=300, score_method=
 
 def main(df_path, target_path, output_path, filters, filters_params):
     feature_res = {
-        "Header": ["k-best", "lasso", "variance"],
+        "Header": ["k-best", "xgboost", "lasso", "ridge", "variance"],
         "function": {
             "k-best": {},
+            "xgboost": {},
             "lasso": {},
+            "l1logistic":{},
+            "ridge": {},
             "vt": {}
         },
     }
@@ -242,6 +296,9 @@ def main(df_path, target_path, output_path, filters, filters_params):
     vt_columns = []
     kbest_columns = []
     lasso_columns = []
+    xgboost_columns = []
+    l1logistic_columns = []
+    ridge_columns = []
 
     for f in filters:
         if 'k-best' in f:
@@ -253,6 +310,18 @@ def main(df_path, target_path, output_path, filters, filters_params):
             df_selected = _fs_lasso(df_selected, el, output_path, filters_params[f], feature_res)
             lasso_columns = df_selected.columns
             print('lasso success, feature left: ', df_selected.shape[1])
+        elif 'ridge' in f:
+            df_selected = _fs_ridge(df_selected, el, output_path, filters_params[f], feature_res)
+            ridge_columns = df_selected.columns
+            print('ridge success, feature left: ', df_selected.shape[1])
+        elif 'l1logistic' in f:
+            df_selected = _fs_l1logistic(df_selected, el, output_path, filters_params[f], feature_res)
+            l1logistic_columns = df_selected.columns
+            print('l1logistic success, feature left: ', df_selected.shape[1])
+        elif 'xgboost' in f:
+            df_selected = _fs_xgboost(df_selected, el, output_path, filters_params[f], feature_res)
+            xgboost_columns = df_selected.columns
+            print('xgboost success, feature left: ', df_selected.shape[1])
         else:
             df_selected = _fs_vt(df_selected, output_path, filters_params[f], feature_res)
             vt_columns = df_selected.columns
@@ -294,7 +363,10 @@ def main(df_path, target_path, output_path, filters, filters_params):
             'feature': f,
             'variance': int(f in vt_columns),
             'k-best': int(f in kbest_columns),
-            'lasso': int(f in lasso_columns)}
+            'lasso': int(f in lasso_columns),
+            'l1logistic': int(f in l1logistic_columns),
+            'ridge': int(f in ridge_columns),
+            'xgboost': int(f in xgboost_columns)},
         ]
 
     res_df = pd.DataFrame(selected)
