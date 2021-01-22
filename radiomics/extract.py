@@ -4,6 +4,7 @@ import pandas as pd
 import csv
 import logging
 import os
+import re
 import shutil
 import tempfile
 import threading
@@ -257,14 +258,16 @@ def main(data_csv, output_path, lib, cpus, img_reader):
 
         try:
             # Store all results into 1 file
-            with open(output_path, mode='w') as outputFile:
-                writer = csv.DictWriter(outputFile,
-                                        fieldnames=list(results[0].keys()),
-                                        restval='',
-                                        extrasaction='raise',
-                                        lineterminator='\n')
-                writer.writeheader()
-                writer.writerows(results)
+            df = pd.DataFrame(results)
+            df.to_csv(output_path, index=None)
+            # with open(output_path, mode='w') as outputFile:
+            #     writer = csv.DictWriter(outputFile,
+            #                             fieldnames=list(results[0].keys()),
+            #                             restval='',
+            #                             extrasaction='raise',
+            #                             lineterminator='\n')
+            #     writer.writeheader()
+            #     writer.writerows(results)
 
             if REMOVE_TEMP_DIR:
                 logger.info('success')
